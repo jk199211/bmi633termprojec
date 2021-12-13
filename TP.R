@@ -1,10 +1,14 @@
-### Simple implementation of PRS calculation 
+####################################################
 
-### 1. first using old static p - value threshold
+### Simple implementation of PRS calculation    #### 
 
-### 2. then using improved bonferroni method
+### 1. first using old static p - value threshold ##
 
-### Members: James Kambere and Puru Panta
+### 2. then using improved bonferroni method #######
+
+### Members: James Kambere and Purushottam Panta ###
+
+####################################################
 
 ### installing required libraries
 
@@ -21,25 +25,33 @@
     
 ### Read in file
     
-    install.packages('R.utils')
+    ## attached library R.utils for reading .gz files
+    
+    library(R.utils)
     dat <- fread("Height.gwas.txt.gz")
     nrow(dat)
 
 ### Filter out SNPs with low MAF and INFO
   
     result <- dat[INFO > 0.8 & MAF > 0.01]
+    
+    ## view results
+    
+    result
     nrow(result)
 
 ### Output the gz file
-  
+     
     fwrite(result, "Height.gz", sep="\t")
 
 ### QC
-
+    
+    ## attaching tidyverse for sub setting data frames
+    
     library(tidyverse)
     hieght_dt <-fread("Height.gz")
 
-### Removing duplicates
+    ### Removing duplicates SNPs
   
     no_duplicates <- hieght_dt[!duplicated(SNP)]
     nrow(no_duplicates)
@@ -54,15 +66,18 @@
     
     ## creating a list of individuals from given .bed file
     
-    install.packages("BEDMatrix")
+    ## attaching BEDMAtrix package
+    
     library(BEDMatrix)
+    
+    ## this path can be changed to suit the location of phenotype files
     
     path <- system.file("extdata", "EUR.bed",package = "BEDMatrix")
     
     # Create a BEDMatrix object the example .bed file
     
     m1 <- BEDMatrix(path)
-    mysnps = data.frame(m1[1:2, 1:52000])
+    mysnps = data.frame(m1[1:2, 1:529493])
     
     ## getting a list of snps
     
@@ -79,13 +94,22 @@
     totranspose <- as.matrix(new_data)
     tansposed <- data.frame(t(as.matrix(totranspose)))
     
+    ## view results, the effect allele is concatinated to the SNPs
     
-    ## subsetting
+    tansposed
+    
+    ## sub setting
+    
+    ## here we are selecting person 1 and 2 only 
     
     person1 = data.frame(tansposed[,1])
     person2 = data.frame(tansposed[,2])
     
     datafile <- cbind(with_exploded_names,person1,person2)
+    
+    ## view the list
+    
+    datafile
     
     ## Remove names
     
@@ -94,17 +118,27 @@
     ## add real names
     
     names(datafile) <- c("SNP","A1","PER001","PER002")
+    
+    ## view file
+    
     datafile
     
-    ## removing N/As
+    ## removing N/As (another QC)
+    
+    ## first convert to data table
     
     new_file = data.table(datafile)
+    
+    ## view it
+    
     new_file
+    
+    ## remove n/a
     
     new_file_withoutna_1 = new_file[!is.na(new_file$PER001),]
     new_file_withoutna_2 = new_file[!is.na(new_file$PER001),]
     
-    ## complete gynotype file
+    ## complete phenotype file
     
     new_file_withoutna_2
     
@@ -120,6 +154,8 @@
     
     ## test with 5000 snps
     
+    ## might take more time it uses an online tool. sometime tocken generation may be required
+    
     for(i in 1:5000){
       
       spns = new_data[i,1]
@@ -131,12 +167,19 @@
     
     final = c(sps_list)
     
+    ## view list
+    
+    final
+    
     ## installing required packages 
     
-    install.packages("LDlinkR")
+    ## attaching a clumping tool LDlinkR
+    
     library(LDlinkR)
     
     ## performing clumping
+    
+    ## here we are using correlation coefficient of 0.2
     
     remaining_alleles = SNPclip(final, "YRI", "0.2", "0.01", token = "37cf85ff085f")
     
@@ -168,7 +211,7 @@
     final_crumped_list
     
     
-### p - value pruning
+### p - value threshold
 
     to_order <- fread("Height.QC.Transformed")
     ordered <- to_order[order(P)]
@@ -257,9 +300,9 @@
     
     ## concatenating with the phenotype file
     
-    prs_snp_file = merge(final_snp,new_file_withoutna_2,by="SNP")
+    prs_snp_file2 = merge(final_snp,new_file_withoutna_2,by="SNP")
     
-    prs_snp_file
+    prs_snp_file2
     
     ## calculating the weight of each snps
     
@@ -271,15 +314,25 @@
     
     new_id_names <- paste0("new_",id_names)
     
-    prs_snp_file[, (new_id_names) := .SD * BETA, .SDcols = id_names]
-    prs_snp_file
+    prs_snp_file2[, (new_id_names) := .SD * BETA, .SDcols = id_names]
+    prs_snp_file2
     
     ## getting the sum of scores
     
-    prs_new_way = prs_snp_file[, colSums(.SD), .SDcols = new_id_names]
+    prs_new_way = prs_snp_file2[, colSums(.SD), .SDcols = new_id_names]
     prs_new_way
     
-### end of programme
+### graphical comparison
+    
+    library(ggplot2)
+    
+    datf <- data.frame(method=c("B-OLD", "B-NEW"),
+                     SNPs=c(19, 46))
+    ggplot(data=datf, aes(x=method, y=SNPs)) +
+      geom_bar(stat="identity", fill="steelblue")+
+      theme_minimal()
+    
+### end of programe ####
     
     
   
